@@ -1,0 +1,5 @@
+{
+  "name": "IntelliMail AI",
+  "description": "An AI-powered email management system that automatically categorizes, analyzes sentiment, and assigns branches to incoming emails using Gemini AI. Supports EML and MSG uploads with intelligent drill-down views.",
+  "requestFramePermissions": []
+}
