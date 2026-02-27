@@ -10,7 +10,16 @@ export default async function handler(req: any, res: any) {
   try {
     const { name, product, reason } = req.body || {};
 
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    if (!process.env.GEMINI_API_KEY) {
+      res.status(400).json({ 
+        error: "MISSING_API_KEY", 
+        message: "GEMINI_API_KEY ist nicht konfiguriert. Bitte den API-Schlüssel in der Umgebung setzen." 
+      });
+      return;
+    }
+
+    // Requires GEMINI_API_KEY in environment variables
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
     // The prompt is based on the user's specific request for style and format.
     const prompt = `Erstelle eine Antwort-E-Mail auf Deutsch, die entweder im **formellen** oder im **lockeren/freundlichen** Stil verfasst ist. Verwende die folgenden Daten:
@@ -59,6 +68,17 @@ Variante 2:
     res.status(200).json({ text });
 
   } catch (error: any) {
-    res.status(500).json({ error: error.message || "Fehler bei der Antwort-Generierung" });
+    console.error("Gemini API Error (generate-reply):", error);
+    if (error.message?.includes("API_KEY") || error.message?.includes("key not found")) {
+      res.status(400).json({ 
+        error: "MISSING_API_KEY", 
+        message: "GEMINI_API_KEY ist ungültig oder fehlt." 
+      });
+    } else {
+      res.status(502).json({ 
+        error: "AI_REQUEST_FAILED", 
+        message: "Die KI-Analyse konnte nicht durchgeführt werden. Bitte später erneut versuchen." 
+      });
+    }
   }
 }

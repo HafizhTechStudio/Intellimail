@@ -32,15 +32,28 @@ export const analyzeEmail = async (content: string): Promise<AnalysisResult> => 
 
     // 3. Fehler-Handling ohne ungeprüftes .json()
     if (!response.ok) {
-      const errorText = await response.text().catch(() => "");
-      console.error(`Analyse-Fehler (${response.status}):`, errorText);
+      const errorData = await response.json().catch(() => ({}));
+      console.error(`Analyse-Fehler (${response.status}):`, errorData);
+      
+      if (errorData.error === "MISSING_API_KEY" || errorData.error === "AI_REQUEST_FAILED") {
+        const err = new Error(errorData.message || "KI-Fehler");
+        (err as any).code = errorData.error;
+        throw err;
+      }
+      
       throw new Error(`Server meldet Status ${response.status}`);
     }
 
     return await response.json();
   } catch (e: any) {
     console.error("Frontend API-Verbindungsfehler:", e);
-    // Rückfall-Ergebnis bei Fehlern (z.B. Timeout oder 413)
+    
+    // Wenn es ein spezieller KI-Fehler ist, werfen wir ihn weiter, damit das UI reagieren kann
+    if (e.code === "MISSING_API_KEY" || e.code === "AI_REQUEST_FAILED") {
+      throw e;
+    }
+
+    // Rückfall-Ergebnis bei allgemeinen Fehlern (z.B. Timeout oder 413)
     return {
       sentiment: Sentiment.NEUTRAL,
       category: "Analyse fehlgeschlagen",
@@ -66,11 +79,22 @@ export const generateReplySuggestions = async (name: string, product: string, re
       body: JSON.stringify({ name, product, reason }),
     });
 
-    if (!response.ok) throw new Error("Fehler beim Abrufen der Vorschläge");
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      if (errorData.error === "MISSING_API_KEY" || errorData.error === "AI_REQUEST_FAILED") {
+        const err = new Error(errorData.message || "KI-Fehler");
+        (err as any).code = errorData.error;
+        throw err;
+      }
+      throw new Error("Fehler beim Abrufen der Vorschläge");
+    }
     const data = await response.json();
     return data.text;
-  } catch (e) {
+  } catch (e: any) {
     console.error(e);
+    if (e.code === "MISSING_API_KEY" || e.code === "AI_REQUEST_FAILED") {
+      throw e;
+    }
     return "Fehler beim Generieren der Vorschläge.";
   }
 };

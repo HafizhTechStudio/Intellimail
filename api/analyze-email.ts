@@ -102,8 +102,16 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
-    // Initialize the AI client directly with process.env.API_KEY as per Google GenAI guidelines.
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    if (!process.env.GEMINI_API_KEY) {
+      res.status(400).json({ 
+        error: "MISSING_API_KEY", 
+        message: "GEMINI_API_KEY ist nicht konfiguriert. Bitte den API-Schlüssel in der Umgebung setzen." 
+      });
+      return;
+    }
+
+    // Requires GEMINI_API_KEY in environment variables
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
     const truncatedContent = content.length > MAX_ANALYSIS_CHARS 
       ? content.substring(0, MAX_ANALYSIS_CHARS)
@@ -177,6 +185,17 @@ export default async function handler(req: any, res: any) {
     res.status(200).json(result);
 
   } catch (error: any) {
-    res.status(500).json({ error: error.message || "Interner Analysefehler" });
+    console.error("Gemini API Error (analyze-email):", error);
+    if (error.message?.includes("API_KEY") || error.message?.includes("key not found")) {
+      res.status(400).json({ 
+        error: "MISSING_API_KEY", 
+        message: "GEMINI_API_KEY ist ungültig oder fehlt." 
+      });
+    } else {
+      res.status(502).json({ 
+        error: "AI_REQUEST_FAILED", 
+        message: "Die KI-Analyse konnte nicht durchgeführt werden. Bitte später erneut versuchen." 
+      });
+    }
   }
 }
