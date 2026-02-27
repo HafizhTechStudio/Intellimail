@@ -1314,7 +1314,7 @@ const App: React.FC = () => {
               <p className="text-slate-400 text-[9px] font-bold uppercase tracking-widest mb-1">Status</p>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-xs font-bold">Gemini 3 Flash Active</span>
+                <span className="text-xs font-bold">Gemini Flash Active</span>
               </div>
             </div>
             <TrendingUp className="absolute -bottom-4 -right-4 w-20 h-20 text-white opacity-5 group-hover:scale-110 transition-transform" />

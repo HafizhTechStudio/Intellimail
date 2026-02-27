@@ -117,9 +117,9 @@ export default async function handler(req: any, res: any) {
       ? content.substring(0, MAX_ANALYSIS_CHARS)
       : content;
 
-    // Use gemini-3-pro-preview for complex reasoning and structured extraction tasks.
+    // Use gemini-flash-latest for stable and efficient analysis in the free tier.
     const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: "gemini-flash-latest",
       contents: `Analysiere die folgende E-Mail (EML/MSG Rohdaten). Extrahiere Metadaten und erstelle eine hochgradig strukturierte, bereinigte HTML-Version des Textkörpers.
 
       STRIKTE ANFORDERUNGEN FÜR 'cleanBody':

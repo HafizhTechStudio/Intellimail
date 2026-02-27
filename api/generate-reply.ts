@@ -58,7 +58,7 @@ Variante 2:
 [Text]`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-flash-latest",
       contents: prompt,
     });
 
