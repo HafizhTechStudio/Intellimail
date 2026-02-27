@@ -23,8 +23,8 @@ interface AnalysisResult {
   date?: string;
 }
 
-const PRIMARY_MODEL = "gemini-1.5-flash";
-const FALLBACK_MODEL = "gemini-1.5-pro";
+const PRIMARY_MODEL = "gemini-1.5-flash-latest";
+const FALLBACK_MODEL = "gemini-1.5-pro-latest";
 const MAX_ANALYSIS_CHARS = 15000; // Reduced for stability as requested
 
 /**
