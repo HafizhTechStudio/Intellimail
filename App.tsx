@@ -1242,8 +1242,8 @@ const App: React.FC = () => {
             <div className="bg-rose-50 p-2 rounded-xl shrink-0">
               <Building className="w-6 h-6" />
             </div>
-            <span className="text-lg font-bold tracking-tight truncate" title="NAMA_FINAL_PRODUK">
-              NAMA_FINAL_PRODUK
+            <span className="text-lg font-bold tracking-tight truncate" title="KI E-Mail Beschwerde-Analyse Dashboard">
+              KI E-Mail Beschwerde-Analyse Dashboard
             </span>
           </div>
           <p className="text-slate-400 text-[10px] mt-2 uppercase tracking-[0.2em] font-bold">Dashboard</p>

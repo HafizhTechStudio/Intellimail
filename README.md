@@ -1,6 +1,6 @@
-# NAMA_FINAL_PRODUK
+# KI E-Mail Beschwerde-Analyse Dashboard
 
-Dashboard zur KI-gestützten Analyse von Filialreklamationen. Dieses System kategorisiert automatisch eingehende E-Mails, analysiert die Stimmung und ordnet sie entsprechenden Filialen zu.
+Dashboard zur KI-gestützten Analyse von Kunden-E-Mails und Beschwerden. Dieses System kategorisiert automatisch eingehende E-Mails, analysiert die Stimmung und ordnet sie entsprechenden Filialen zu.
 
 ## Features
 
