@@ -1098,9 +1098,17 @@ const App: React.FC = () => {
             setAiErrorCode(null);
           } catch (err: any) {
             console.error("Error processing file", file.name, err);
-            if (err.code === "MISSING_API_KEY" || err.code === "AI_REQUEST_FAILED") {
+            if (err.code === "MISSING_API_KEY" || err.code === "AI_REQUEST_FAILED" || err.code === "TEMPORARY_UNAVAILABLE") {
               setIsAiAvailable(false);
               setAiErrorCode(err.code);
+              
+              // Bei temporärer Überlastung nach 60 Sek. automatisch reaktivieren
+              if (err.code === "TEMPORARY_UNAVAILABLE") {
+                setTimeout(() => {
+                  setIsAiAvailable(true);
+                  setAiErrorCode(null);
+                }, 60000);
+              }
             }
           } finally {
             setUploadState(prev => ({ ...prev, processed: prev.processed + 1 }));
@@ -1324,16 +1332,22 @@ const App: React.FC = () => {
 
       <main className="flex-1 flex flex-col overflow-hidden">
         {!isAiAvailable && (
-          <div className="bg-amber-50 border-b border-amber-100 p-4 flex items-center gap-4 animate-in slide-in-from-top duration-500 shrink-0">
-            <div className="bg-amber-100 p-2 rounded-xl">
-              <AlertTriangle className="w-5 h-5 text-amber-600" />
+          <div className={`${aiErrorCode === "TEMPORARY_UNAVAILABLE" ? "bg-orange-50 border-orange-100" : "bg-amber-50 border-amber-100"} border-b p-4 flex items-center gap-4 animate-in slide-in-from-top duration-500 shrink-0`}>
+            <div className={`${aiErrorCode === "TEMPORARY_UNAVAILABLE" ? "bg-orange-100" : "bg-amber-100"} p-2 rounded-xl`}>
+              <AlertTriangle className={`w-5 h-5 ${aiErrorCode === "TEMPORARY_UNAVAILABLE" ? "text-orange-600" : "text-amber-600"}`} />
             </div>
             <div>
-              <h4 className="text-sm font-black text-amber-900 uppercase tracking-tight">KI-Analyse deaktiviert</h4>
-              <p className="text-xs text-amber-700 font-medium mt-0.5">
+              <h4 className={`text-sm font-black uppercase tracking-tight ${aiErrorCode === "TEMPORARY_UNAVAILABLE" ? "text-orange-900" : "text-amber-900"}`}>
+                {aiErrorCode === "MISSING_API_KEY" ? "KI-Analyse deaktiviert" : 
+                 aiErrorCode === "TEMPORARY_UNAVAILABLE" ? "KI vorübergehend nicht verfügbar" : 
+                 "KI-Analyse fehlgeschlagen"}
+              </h4>
+              <p className={`text-xs font-medium mt-0.5 ${aiErrorCode === "TEMPORARY_UNAVAILABLE" ? "text-orange-700" : "text-amber-700"}`}>
                 {aiErrorCode === "MISSING_API_KEY" 
                   ? "Es ist kein GEMINI_API_KEY konfiguriert. Bitte hinterlegen Sie einen gültigen API-Schlüssel in der Umgebungsvariable, um die KI-Funktionen zu aktivieren."
-                  : "Die KI-Analyse konnte nicht durchgeführt werden. Bitte prüfen Sie Ihre Internetverbindung oder versuchen Sie es später erneut."}
+                  : aiErrorCode === "TEMPORARY_UNAVAILABLE"
+                  ? "Die KI ist aktuell stark ausgelastet. Bitte versuchen Sie es in 1–2 Minuten erneut."
+                  : "Die KI-Analyse konnte nicht durchgeführt werden. Bitte prüfen Sie Ihre Verbindung oder versuchen Sie es später erneut."}
               </p>
             </div>
           </div>
@@ -1369,7 +1383,13 @@ const App: React.FC = () => {
               <div className="relative">
                 <label className={`flex items-center justify-center gap-3 w-full py-3.5 ${uploadState.status === 'uploading' || !isAiAvailable ? 'bg-slate-400 cursor-not-allowed opacity-80' : 'bg-rose-600 hover:bg-rose-700 active:scale-95 cursor-pointer'} text-white rounded-2xl text-sm font-bold transition-all shadow-xl shadow-rose-100`}>
                   <FileUp className="w-5 h-5" />
-                  <span>{uploadState.status === 'uploading' ? 'Import läuft...' : 'E-Mail importieren'}</span>
+                  <span>
+                    {uploadState.status === 'uploading' 
+                      ? 'Import läuft...' 
+                      : aiErrorCode === "TEMPORARY_UNAVAILABLE" 
+                      ? 'KI überlastet (Warten...)' 
+                      : 'E-Mail importieren'}
+                  </span>
                   <input 
                     type="file" 
                     className="hidden" 
@@ -1380,8 +1400,8 @@ const App: React.FC = () => {
                   />
                 </label>
                 {!isAiAvailable && (
-                  <p className="text-[10px] text-amber-600 font-bold text-center mt-2 animate-in fade-in duration-500">
-                    KI-Analyse derzeit deaktiviert
+                  <p className={`text-[10px] font-bold text-center mt-2 animate-in fade-in duration-500 ${aiErrorCode === "TEMPORARY_UNAVAILABLE" ? "text-orange-600" : "text-amber-600"}`}>
+                    {aiErrorCode === "MISSING_API_KEY" ? "KI-Analyse deaktiviert" : "KI-Analyse vorübergehend gesperrt"}
                   </p>
                 )}
               </div>

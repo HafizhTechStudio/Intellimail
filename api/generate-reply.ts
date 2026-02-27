@@ -1,6 +1,54 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
+const PRIMARY_MODEL = "gemini-1.5-flash";
+const FALLBACK_MODEL = "gemini-1.5-pro";
+
+/**
+ * Hilfsfunktion für Verzögerungen (Backoff)
+ */
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * Führt den KI-Aufruf mit Retry- und Fallback-Logik aus.
+ */
+async function generateContentWithRetry(ai: any, prompt: string) {
+  const attempts = [
+    { model: PRIMARY_MODEL, delay: 0 },
+    { model: PRIMARY_MODEL, delay: 400 },
+    { model: FALLBACK_MODEL, delay: 500 }
+  ];
+
+  let lastError: any = null;
+
+  for (let i = 0; i < attempts.length; i++) {
+    const { model, delay } = attempts[i];
+    if (delay > 0) await sleep(delay);
+
+    try {
+      console.log(`KI-Antwort Versuch ${i + 1} mit Modell: ${model}`);
+      const response = await ai.models.generateContent({
+        model,
+        contents: prompt,
+      });
+      return response;
+    } catch (error: any) {
+      lastError = error;
+      const status = error.status || error.code || (error.response && error.response.status);
+      const message = error.message || "";
+      
+      const isRetryable = status === 503 || status === 429 || 
+                         message.includes("UNAVAILABLE") || 
+                         message.includes("RESOURCE_EXHAUSTED") ||
+                         message.includes("high demand");
+
+      if (!isRetryable) throw error;
+      console.error(`Fehler bei Antwort-Versuch ${i + 1} (${model}): ${message}`);
+    }
+  }
+  throw lastError;
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: "Method Not Allowed" });
@@ -57,10 +105,7 @@ Variante 1:
 Variante 2:  
 [Text]`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
-      contents: prompt,
-    });
+    const response = await generateContentWithRetry(ai, prompt);
 
     const text = response.text;
     if (!text) throw new Error("Keine Antwort von der KI erhalten.");
@@ -69,10 +114,18 @@ Variante 2:
 
   } catch (error: any) {
     console.error("Gemini API Error (generate-reply):", error);
-    if (error.message?.includes("API_KEY") || error.message?.includes("key not found")) {
+    const status = error.status || error.code || (error.response && error.response.status);
+    const message = error.message || "";
+
+    if (message.includes("API_KEY") || message.includes("key not found")) {
       res.status(400).json({ 
         error: "MISSING_API_KEY", 
         message: "GEMINI_API_KEY ist ungültig oder fehlt." 
+      });
+    } else if (status === 503 || status === 429 || message.includes("high demand") || message.includes("RESOURCE_EXHAUSTED") || message.includes("UNAVAILABLE")) {
+      res.status(503).json({ 
+        error: "TEMPORARY_UNAVAILABLE", 
+        message: "Die KI ist aktuell stark ausgelastet. Bitte in 1–2 Minuten erneut versuchen." 
       });
     } else {
       res.status(502).json({ 

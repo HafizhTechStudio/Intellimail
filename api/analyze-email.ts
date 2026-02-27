@@ -23,7 +23,9 @@ interface AnalysisResult {
   date?: string;
 }
 
-const MAX_ANALYSIS_CHARS = 100000;
+const PRIMARY_MODEL = "gemini-1.5-flash";
+const FALLBACK_MODEL = "gemini-1.5-pro";
+const MAX_ANALYSIS_CHARS = 15000; // Reduced for stability as requested
 
 /**
  * Wandelt rohe URLs im Text in klickbare HTML-Links um, falls diese noch nicht verlinkt sind.
@@ -86,6 +88,61 @@ function sanitizeEmailHtml(html: string): string {
 }
 
 /**
+ * Hilfsfunktion für Verzögerungen (Backoff)
+ */
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * Führt den KI-Aufruf mit Retry- und Fallback-Logik aus.
+ */
+async function generateContentWithRetry(ai: any, contents: any, config: any) {
+  const attempts = [
+    { model: PRIMARY_MODEL, delay: 0 },
+    { model: PRIMARY_MODEL, delay: 400 },
+    { model: PRIMARY_MODEL, delay: 900 },
+    { model: FALLBACK_MODEL, delay: 500 } // Letzter Versuch mit Fallback-Modell
+  ];
+
+  let lastError: any = null;
+
+  for (let i = 0; i < attempts.length; i++) {
+    const { model, delay } = attempts[i];
+    
+    if (delay > 0) await sleep(delay);
+
+    try {
+      console.log(`KI-Analyse Versuch ${i + 1} mit Modell: ${model}`);
+      const response = await ai.models.generateContent({
+        model,
+        contents,
+        config
+      });
+      return response;
+    } catch (error: any) {
+      lastError = error;
+      const status = error.status || error.code || (error.response && error.response.status);
+      const message = error.message || "";
+      
+      const isRetryable = status === 503 || status === 429 || 
+                         message.includes("UNAVAILABLE") || 
+                         message.includes("RESOURCE_EXHAUSTED") ||
+                         message.includes("high demand");
+
+      console.error(`Fehler bei Versuch ${i + 1} (${model}): Status ${status}, Nachricht: ${message}`);
+
+      if (!isRetryable) {
+        // Nicht-retryfähiger Fehler (z.B. 400 Bad Request) sofort werfen
+        throw error;
+      }
+      
+      // Wenn es der letzte Versuch war, wird die Schleife beendet und der Fehler unten behandelt
+    }
+  }
+
+  throw lastError;
+}
+
+/**
  * Server-Handler für die E-Mail-Analyse.
  */
 export default async function handler(req: any, res: any) {
@@ -117,10 +174,7 @@ export default async function handler(req: any, res: any) {
       ? content.substring(0, MAX_ANALYSIS_CHARS)
       : content;
 
-    // Use gemini-1.5-flash for stable production analysis.
-    const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
-      contents: `Analysiere die folgende E-Mail (EML/MSG Rohdaten). Extrahiere Metadaten und erstelle eine hochgradig strukturierte, bereinigte HTML-Version des Textkörpers.
+    const contents = `Analysiere die folgende E-Mail (EML/MSG Rohdaten). Extrahiere Metadaten und erstelle eine hochgradig strukturierte, bereinigte HTML-Version des Textkörpers.
 
       STRIKTE ANFORDERUNGEN FÜR 'cleanBody':
       1. ORIGINALITÄT: Gib den ORIGINALEN Textkörper zurück. Keine Texte erfinden oder löschen. Behalte die Reihenfolge und Leerzeichen bei.
@@ -134,30 +188,32 @@ export default async function handler(req: any, res: any) {
       
       E-Mail Rohdaten:
       ${truncatedContent}
-      `,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            sentiment: { type: Type.STRING, enum: ["Positive", "Neutral", "Negative"] },
-            category: { type: Type.STRING },
-            product: { type: Type.STRING },
-            reason: { type: Type.STRING },
-            branch: { type: Type.STRING },
-            cleanBody: { type: Type.STRING, description: "Der originalgetreue Textkörper in bereinigtem HTML (p, br, b, a, img)." },
-            summary: { type: Type.STRING },
-            subject: { type: Type.STRING },
-            from: { type: Type.STRING },
-            to: { type: Type.STRING },
-            date: { type: Type.STRING },
-            employeeId: { type: Type.STRING },
-            employeeName: { type: Type.STRING }
-          },
-          required: ["sentiment", "category", "product", "reason", "branch", "summary", "cleanBody", "subject", "from", "to", "date"]
+      `;
+
+    const config = {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          sentiment: { type: Type.STRING, enum: ["Positive", "Neutral", "Negative"] },
+          category: { type: Type.STRING },
+          product: { type: Type.STRING },
+          reason: { type: Type.STRING },
+          branch: { type: Type.STRING },
+          cleanBody: { type: Type.STRING, description: "Der originalgetreue Textkörper in bereinigtem HTML (p, br, b, a, img)." },
+          summary: { type: Type.STRING },
+          subject: { type: Type.STRING },
+          from: { type: Type.STRING },
+          to: { type: Type.STRING },
+          date: { type: Type.STRING },
+          employeeId: { type: Type.STRING },
+          employeeName: { type: Type.STRING }
         },
+        required: ["sentiment", "category", "product", "reason", "branch", "summary", "cleanBody", "subject", "from", "to", "date"]
       },
-    });
+    };
+
+    const response = await generateContentWithRetry(ai, contents, config);
 
     // Access the response text using the .text property (not a method).
     const text = response.text;
@@ -186,10 +242,18 @@ export default async function handler(req: any, res: any) {
 
   } catch (error: any) {
     console.error("Gemini API Error (analyze-email):", error);
-    if (error.message?.includes("API_KEY") || error.message?.includes("key not found")) {
+    const status = error.status || error.code || (error.response && error.response.status);
+    const message = error.message || "";
+
+    if (message.includes("API_KEY") || message.includes("key not found")) {
       res.status(400).json({ 
         error: "MISSING_API_KEY", 
         message: "GEMINI_API_KEY ist ungültig oder fehlt." 
+      });
+    } else if (status === 503 || status === 429 || message.includes("high demand") || message.includes("RESOURCE_EXHAUSTED") || message.includes("UNAVAILABLE")) {
+      res.status(503).json({ 
+        error: "TEMPORARY_UNAVAILABLE", 
+        message: "Die KI ist aktuell stark ausgelastet. Bitte in 1–2 Minuten erneut versuchen." 
       });
     } else {
       res.status(502).json({ 
