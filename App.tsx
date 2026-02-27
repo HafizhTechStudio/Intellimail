@@ -42,6 +42,7 @@ import {
 } from './components/Icons';
 import { Users, Download, Upload, AlertTriangle } from 'lucide-react';
 import { analyzeEmail } from './services/geminiService';
+import { getDemoEmails } from './demoData';
 
 // Hilfsfunktionen
 const extractImagesFromRaw = (raw: string): string[] => {
@@ -547,6 +548,26 @@ const App: React.FC = () => {
   const [isSentimentDropdownOpen, setIsSentimentDropdownOpen] = useState(false);
   const [pendingSentiment, setPendingSentiment] = useState<Sentiment | null>(null);
 
+  // AI Availability States
+  const [isAiAvailable, setIsAiAvailable] = useState<boolean>(true);
+  const [aiErrorCode, setAiErrorCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    const checkAiStatus = async () => {
+      try {
+        const response = await fetch('/api/ai-status');
+        const data = await response.json();
+        if (!data.available) {
+          setIsAiAvailable(false);
+          setAiErrorCode(data.error);
+        }
+      } catch (err) {
+        console.error("Failed to check AI status", err);
+      }
+    };
+    checkAiStatus();
+  }, []);
+
   // Auto-Select Logik
   useEffect(() => {
     if (activeTab === 'inbox' && emails.length > 0 && !selectedEmail) {
@@ -1027,6 +1048,16 @@ const App: React.FC = () => {
 
     reader.readAsText(file);
   };
+  
+  const handleLoadDemoData = () => {
+    const demoEmails = getDemoEmails();
+    const alreadyHasDemo = emails.some(e => e.isDemo);
+    if (alreadyHasDemo) {
+      alert('Demo-Daten sind bereits geladen.');
+      return;
+    }
+    setEmails(prev => [...prev, ...demoEmails]);
+  };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -1063,8 +1094,14 @@ const App: React.FC = () => {
               status: EmailStatus.OPEN
             };
             setEmails(prev => [newEmail, ...prev]);
-          } catch (err) {
+            setIsAiAvailable(true);
+            setAiErrorCode(null);
+          } catch (err: any) {
             console.error("Error processing file", file.name, err);
+            if (err.code === "MISSING_API_KEY" || err.code === "AI_REQUEST_FAILED") {
+              setIsAiAvailable(false);
+              setAiErrorCode(err.code);
+            }
           } finally {
             setUploadState(prev => ({ ...prev, processed: prev.processed + 1 }));
             resolve();
@@ -1101,7 +1138,6 @@ const App: React.FC = () => {
   const handleSelectEmail = (email: Email) => {
     setSelectedEmail(email);
     setShowOriginal(false);
-    setReplyText(null);
     setIsStatusDropdownOpen(false);
     setPendingStatus(null);
     setIsSentimentDropdownOpen(false);
@@ -1202,13 +1238,15 @@ const App: React.FC = () => {
 
       <aside className="w-72 bg-white border-r border-slate-200 flex flex-col shrink-0">
         <div className="p-8 border-b border-slate-100">
-          <div className="flex items-center gap-3 text-rose-600 font-bold text-2xl tracking-tight">
-            <div className="bg-rose-50 p-2 rounded-xl">
-              <Building className="w-8 h-8" />
+          <div className="flex items-center gap-3 text-rose-600 overflow-hidden">
+            <div className="bg-rose-50 p-2 rounded-xl shrink-0">
+              <Building className="w-6 h-6" />
             </div>
-            <span>Gilgen's</span>
+            <span className="text-lg font-bold tracking-tight truncate" title="NAMA_FINAL_PRODUK">
+              NAMA_FINAL_PRODUK
+            </span>
           </div>
-          <p className="text-slate-400 text-[10px] mt-2 uppercase tracking-[0.2em] font-bold">Bäckerei Dashboard</p>
+          <p className="text-slate-400 text-[10px] mt-2 uppercase tracking-[0.2em] font-bold">Dashboard</p>
         </div>
         
         <nav className="flex-1 p-6 space-y-2">
@@ -1259,6 +1297,14 @@ const App: React.FC = () => {
               <Upload className="w-4 h-4" />
               <span>Importieren (.json)</span>
             </button>
+            <button
+              type="button"
+              onClick={handleLoadDemoData}
+              className="mt-1 w-full flex items-center gap-3 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-2xl px-3 py-2 transition"
+            >
+              <TrendingUp className="w-4 h-4" />
+              <span>Demo-Daten laden</span>
+            </button>
           </div>
         </nav>
 
@@ -1276,9 +1322,25 @@ const App: React.FC = () => {
         </div>
       </aside>
 
-      <main className="flex-1 flex overflow-hidden">
+      <main className="flex-1 flex flex-col overflow-hidden">
+        {!isAiAvailable && (
+          <div className="bg-amber-50 border-b border-amber-100 p-4 flex items-center gap-4 animate-in slide-in-from-top duration-500 shrink-0">
+            <div className="bg-amber-100 p-2 rounded-xl">
+              <AlertTriangle className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <h4 className="text-sm font-black text-amber-900 uppercase tracking-tight">KI-Analyse deaktiviert</h4>
+              <p className="text-xs text-amber-700 font-medium mt-0.5">
+                {aiErrorCode === "MISSING_API_KEY" 
+                  ? "Es ist kein GEMINI_API_KEY konfiguriert. Bitte hinterlegen Sie einen gültigen API-Schlüssel in der Umgebungsvariable, um die KI-Funktionen zu aktivieren."
+                  : "Die KI-Analyse konnte nicht durchgeführt werden. Bitte prüfen Sie Ihre Internetverbindung oder versuchen Sie es später erneut."}
+              </p>
+            </div>
+          </div>
+        )}
         
-        {activeTab === 'inbox' && view === 'list' && (
+        <div className="flex-1 flex overflow-hidden">
+          {activeTab === 'inbox' && view === 'list' && (
           <div className="w-[450px] bg-white border-r border-slate-200 flex flex-col shrink-0 animate-in slide-in-from-left duration-300">
             <div className="p-6 border-b border-slate-100 space-y-4">
               <div className="relative">
@@ -1305,11 +1367,23 @@ const App: React.FC = () => {
               </div>
 
               <div className="relative">
-                <label className={`flex items-center justify-center gap-3 w-full py-3.5 ${uploadState.status === 'uploading' ? 'bg-rose-400 cursor-not-allowed opacity-80' : 'bg-rose-600 hover:bg-rose-700 active:scale-95 cursor-pointer'} text-white rounded-2xl text-sm font-bold transition-all shadow-xl shadow-rose-100`}>
+                <label className={`flex items-center justify-center gap-3 w-full py-3.5 ${uploadState.status === 'uploading' || !isAiAvailable ? 'bg-slate-400 cursor-not-allowed opacity-80' : 'bg-rose-600 hover:bg-rose-700 active:scale-95 cursor-pointer'} text-white rounded-2xl text-sm font-bold transition-all shadow-xl shadow-rose-100`}>
                   <FileUp className="w-5 h-5" />
                   <span>{uploadState.status === 'uploading' ? 'Import läuft...' : 'E-Mail importieren'}</span>
-                  <input type="file" className="hidden" onChange={handleFileUpload} accept=".eml,.msg" disabled={uploadState.status === 'uploading'} multiple />
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    onChange={handleFileUpload} 
+                    accept=".eml,.msg" 
+                    disabled={uploadState.status === 'uploading' || !isAiAvailable} 
+                    multiple 
+                  />
                 </label>
+                {!isAiAvailable && (
+                  <p className="text-[10px] text-amber-600 font-bold text-center mt-2 animate-in fade-in duration-500">
+                    KI-Analyse derzeit deaktiviert
+                  </p>
+                )}
               </div>
             </div>
 
@@ -1442,6 +1516,12 @@ const App: React.FC = () => {
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <h1 className="text-3xl font-black text-slate-900 tracking-tight">Statistiken</h1>
+                      {emails.some(e => e.isDemo) && (
+                        <div className="mt-2 inline-flex items-center gap-2 bg-amber-50 text-amber-700 px-3 py-1 rounded-full border border-amber-100 animate-pulse">
+                          <AlertTriangle className="w-3.5 h-3.5" />
+                          <span className="text-[10px] font-bold uppercase tracking-wider">Demo-Daten aktiv – alle Werte dienen nur zu Demonstrationszwecken.</span>
+                        </div>
+                      )}
                       <p className="mt-1 text-sm text-slate-500 font-bold">
                         Überblick über alle eingegangenen Kunden-E-Mails.
                       </p>
@@ -2020,7 +2100,8 @@ const App: React.FC = () => {
             </div>
           )}
         </div>
-      </main>
+      </div>
+    </main>
 
       <style dangerouslySetInnerHTML={{ __html: `
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }

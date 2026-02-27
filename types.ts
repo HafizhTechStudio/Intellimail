@@ -28,6 +28,7 @@ export interface Email {
   employeeId?: string;
   employeeName?: string;
   status: EmailStatus;
+  isDemo?: boolean;
 }
 
 export interface AnalysisResult {
