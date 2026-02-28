@@ -23,8 +23,7 @@ interface AnalysisResult {
   date?: string;
 }
 
-const PRIMARY_MODEL = "gemini-1.5-flash-latest";
-const FALLBACK_MODEL = "gemini-1.5-pro-latest";
+const MODEL = "gemini-flash-latest";
 const MAX_ANALYSIS_CHARS = 15000; // Reduced for stability as requested
 
 /**
@@ -97,10 +96,10 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
  */
 async function generateContentWithRetry(ai: any, contents: any, config: any) {
   const attempts = [
-    { model: PRIMARY_MODEL, delay: 0 },
-    { model: PRIMARY_MODEL, delay: 400 },
-    { model: PRIMARY_MODEL, delay: 900 },
-    { model: FALLBACK_MODEL, delay: 500 } // Letzter Versuch mit Fallback-Modell
+    { model: MODEL, delay: 0 },
+    { model: MODEL, delay: 400 },
+    { model: MODEL, delay: 900 },
+    { model: MODEL, delay: 1500 } 
   ];
 
   let lastError: any = null;

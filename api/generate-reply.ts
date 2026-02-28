@@ -1,8 +1,7 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-const PRIMARY_MODEL = "gemini-1.5-flash-latest";
-const FALLBACK_MODEL = "gemini-1.5-pro-latest";
+const MODEL = "gemini-flash-latest";
 
 /**
  * Hilfsfunktion für Verzögerungen (Backoff)
@@ -14,9 +13,9 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
  */
 async function generateContentWithRetry(ai: any, prompt: string) {
   const attempts = [
-    { model: PRIMARY_MODEL, delay: 0 },
-    { model: PRIMARY_MODEL, delay: 400 },
-    { model: FALLBACK_MODEL, delay: 500 }
+    { model: MODEL, delay: 0 },
+    { model: MODEL, delay: 400 },
+    { model: MODEL, delay: 900 }
   ];
 
   let lastError: any = null;
