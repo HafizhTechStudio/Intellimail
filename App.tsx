@@ -1321,8 +1321,8 @@ const App: React.FC = () => {
             <div className="relative z-10">
               <p className="text-slate-400 text-[9px] font-bold uppercase tracking-widest mb-1">Status</p>
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-xs font-bold">Gemini Flash Active</span>
+                <div className={`w-2 h-2 rounded-full ${isAiAvailable ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'}`} />
+                <span className="text-xs font-bold">{isAiAvailable ? 'KI-Analyse aktiv' : 'KI-Analyse deaktiviert'}</span>
               </div>
             </div>
             <TrendingUp className="absolute -bottom-4 -right-4 w-20 h-20 text-white opacity-5 group-hover:scale-110 transition-transform" />
