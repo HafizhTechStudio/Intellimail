@@ -22,6 +22,10 @@ Erstellen Sie eine `.env.local` Datei im Wurzelverzeichnis und fügen Sie Ihren 
 
 ```env
 GEMINI_API_KEY=Ihr_Gemini_API_Key
+
+Standardmäßig wird gemini-3-pro-preview verwendet. 
+Falls dieses Modell in Ihrem Konto nicht verfügbar ist, passen Sie den Modellnamen in api/analyze-email.ts 
+entsprechend an (z.B. gemini-flash-latest oder ein anderes in Google AI Studio verfügbares Modell).
 ```
 
 ## Development
