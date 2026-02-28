@@ -35,7 +35,7 @@ export const analyzeEmail = async (content: string): Promise<AnalysisResult> => 
       const errorData = await response.json().catch(() => ({}));
       console.error(`Analyse-Fehler (${response.status}):`, errorData);
       
-      if (errorData.error === "MISSING_API_KEY" || errorData.error === "AI_REQUEST_FAILED") {
+      if (errorData.error === "MISSING_API_KEY" || errorData.error === "AI_REQUEST_FAILED" || errorData.error === "TEMPORARY_UNAVAILABLE") {
         const err = new Error(errorData.message || "KI-Fehler");
         (err as any).code = errorData.error;
         throw err;
@@ -49,7 +49,7 @@ export const analyzeEmail = async (content: string): Promise<AnalysisResult> => 
     console.error("Frontend API-Verbindungsfehler:", e);
     
     // Wenn es ein spezieller KI-Fehler ist, werfen wir ihn weiter, damit das UI reagieren kann
-    if (e.code === "MISSING_API_KEY" || e.code === "AI_REQUEST_FAILED") {
+    if (e.code === "MISSING_API_KEY" || e.code === "AI_REQUEST_FAILED" || e.code === "TEMPORARY_UNAVAILABLE") {
       throw e;
     }
 
@@ -81,7 +81,7 @@ export const generateReplySuggestions = async (name: string, product: string, re
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      if (errorData.error === "MISSING_API_KEY" || errorData.error === "AI_REQUEST_FAILED") {
+      if (errorData.error === "MISSING_API_KEY" || errorData.error === "AI_REQUEST_FAILED" || errorData.error === "TEMPORARY_UNAVAILABLE") {
         const err = new Error(errorData.message || "KI-Fehler");
         (err as any).code = errorData.error;
         throw err;
@@ -92,7 +92,7 @@ export const generateReplySuggestions = async (name: string, product: string, re
     return data.text;
   } catch (e: any) {
     console.error(e);
-    if (e.code === "MISSING_API_KEY" || e.code === "AI_REQUEST_FAILED") {
+    if (e.code === "MISSING_API_KEY" || e.code === "AI_REQUEST_FAILED" || e.code === "TEMPORARY_UNAVAILABLE") {
       throw e;
     }
     return "Fehler beim Generieren der Vorschläge.";

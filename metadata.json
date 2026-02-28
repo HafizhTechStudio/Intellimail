@@ -1,5 +1,5 @@
 {
-  "name": "Intellimail_Final",
-  "description": "Dashboard zur KI-gestützten Analyse von Filialreklamationen.",
+  "name": "KI E-Mail Beschwerde-Analyse Dashboard",
+  "description": "Dashboard zur KI-gestützten Analyse von Kunden-E-Mails und Beschwerden.",
   "requestFramePermissions": []
 }
